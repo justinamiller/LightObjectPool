@@ -4,9 +4,8 @@ using System.Text;
 
 namespace ObjectPool
 {
-    public sealed class PoolManager
+    public static class PoolManager
     {
-
 
     }
 }

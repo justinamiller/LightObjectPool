@@ -4,9 +4,25 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Threading;
+using System.Diagnostics;
 
 namespace ObjectPool
 {
+    public static class Pool
+    {
+        public static Pool<T> Create<T>(IPoolPolicy<T> policy = null) where T : class, new()
+        {
+            return new Pool<T>(policy ?? new DefaultPoolPolicy<T>());
+        }
+
+
+        public static Pool<T> Create<T>(Action<T> reinitializeObject = null, int maximumPoolSize = 0) where T : class, new()
+        {
+            return new Pool<T>(new DefaultPoolPolicy<T>(reinitializeObject, maximumPoolSize));
+        }
+    }
+
+
     /// <summary>
     /// A non-blocking object pool optimised for situations involving heavily concurrent access.
     /// </summary>
@@ -21,19 +37,20 @@ namespace ObjectPool
     /// <seealso cref="PoolPolicy{T}"/>
     /// <seealso cref="IPool{T}"/>
     /// <seealso cref="PooledObject{T}"/>
-    public class Pool<T> : PoolBase<T>
+    public class Pool<T> : PoolBase<T> where T : class
     {
+        /// <summary>
+        /// struct wrapper avoids array-covariance-checks from the runtime when assigning to elements of the array.
+        /// </summary>
+        private protected struct ObjectWrapper
+        {
+            public T Element;
+        }
 
         #region Fields
-
-        private readonly System.Collections.Concurrent.ConcurrentBag<T> _Pool;
+        private protected readonly ObjectWrapper[] _pool;
         private readonly System.Collections.Concurrent.BlockingCollection<T> _ItemsToInitialise;
-
-        private long _PoolInstancesCount;
-
-#if SUPPORTS_THREADS
-				System.Threading.Thread _ReinitialiseThread; 
-#endif
+        private int _poolInstancesCount;
 
         #endregion
 
@@ -44,28 +61,23 @@ namespace ObjectPool
         /// </summary>
         /// <param name="poolPolicy">A <seealso cref="PoolPolicy{T}"/> instance containing configuration information for the pool.</param>
         /// <exception cref="System.ArgumentNullException">Thrown if the <paramref name="poolPolicy"/> argument is null.</exception>
-        /// <exception cref="System.ArgumentException">Thrown if the <see cref="PoolPolicy{T}.Factory"/> property of the <paramref name="poolPolicy"/> argument is null.</exception>
-        public Pool(PoolPolicy<T> poolPolicy) : base(poolPolicy)
+        /// <exception cref="System.ArgumentException">Thrown if the <see cref="PoolPolicy{T}._factory"/> property of the <paramref name="poolPolicy"/> argument is null.</exception>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "HAA0603:Delegate allocation from a method group", Justification = "<Pending>")]
+        public Pool(IPoolPolicy<T> poolPolicy) : base(poolPolicy)
         {
-            _Pool = new System.Collections.Concurrent.ConcurrentBag<T>();
-
+            _pool = new ObjectWrapper[PoolPolicy.MaximumPoolSize];
             if (PoolPolicy.InitializationPolicy == PooledItemInitialization.AsyncReturn)
             {
                 _ItemsToInitialise = new System.Collections.Concurrent.BlockingCollection<T>();
-#if SUPPORTS_THREADS
-				_ReinitialiseThread = new System.Threading.Thread(this.BackgroundReinitialise);
-				_ReinitialiseThread.Name = this.GetType().FullName + " Background Reinitialise";
-				_ReinitialiseThread.IsBackground = true;
-				_ReinitialiseThread.Start();
-#else
+
                 System.Threading.Tasks.Task.Factory.StartNew(this.BackgroundReinitialise, System.Threading.Tasks.TaskCreationOptions.LongRunning);
-#endif
             }
         }
 
         #endregion
 
         #region IPool<T> Members
+
 
         /// <summary>
         /// Gets an item from the pool.
@@ -81,19 +93,42 @@ namespace ObjectPool
             CheckDisposed();
 
             T retVal;
-
-            if (_Pool.TryTake(out retVal))
+            var pool = _pool;
+            for (var i = 0; i < pool.Length; i++)
             {
-                Interlocked.Decrement(ref _PoolInstancesCount);
+                retVal = pool[i].Element;
+                if (retVal != null && Interlocked.CompareExchange(ref pool[i].Element, null, retVal) == retVal)
+                {
+                    Interlocked.Decrement(ref _poolInstancesCount);
+                    if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Take)
+                    {
+                        PoolPolicy.Reinitialize(retVal);
+                    }
 
-                if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Take && PoolPolicy.ReinitializeObject != null)
-                    PoolPolicy.ReinitializeObject(retVal);
+
+                    return retVal;
+                }
             }
-            else
-                retVal = PoolPolicy.Factory(this);
 
-            return retVal;
+            //need to create new instance
+            return PoolPolicy.Create(this);
         }
+
+
+        /// <summary>
+        /// Wrapped gets an item from the pool.
+        /// </summary>
+        /// <remarks>
+        /// <para>If the pool is empty when the request is made, a new item is instantiated and returned. Otherwise an instance from the pool will be used.</para>
+        /// <para>This method is thread safe.</para>
+        /// </remarks>
+        /// <returns>Returns an instance of {T} from the pool, or a new instance if the pool is empty.</returns>
+        /// <exception cref="ObjectDisposedException">Thrown if the pool has been disposed.</exception>
+        public override PooledObject<T> GetPooledObject()
+        {
+            return new PooledObject<T>(this, this.Get());
+        }
+
 
         /// <summary>
         /// Returns/adds an object to the pool so it can be reused.
@@ -108,68 +143,62 @@ namespace ObjectPool
         /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown if the <paramref name="value"/> is null.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the <see cref="PoolPolicy{T}.ErrorOnIncorrectUsage"/> is true and the same instance already exists in the pool.</exception>
-        public override void Return(T value)
+        public override bool Return(T value)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
             if (IsDisposed)
             {
-                SafeDispose(value);
-                return;
+                SafeDispose((object)value);
+                return false;
             }
 
-            if (ShouldReturnToPool(value))
+            //check if pool is full
+            if (!IsPoolFull())
             {
                 if (PoolPolicy.InitializationPolicy == PooledItemInitialization.AsyncReturn)
+                {
                     SafeAddToReinitialiseQueue(value);
+                    return true;
+                }
                 else
                 {
-                    if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Return && PoolPolicy.ReinitializeObject != null)
-                        PoolPolicy.ReinitializeObject(value);
+                    if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Return)
+                    {
+                        PoolPolicy.Reinitialize(value);
+                    }
 
-                    _Pool.Add(value);
-                    Interlocked.Increment(ref _PoolInstancesCount);
+                    Add(value);
+
+                    return true;
                 }
             }
             else
-                SafeDispose(value);
-        }
-
-        /// <summary>
-        /// Creates new items and adds them to the pool up to it's maximum capacity.
-        /// </summary>
-        /// <remarks>
-        /// <para>This method is 'thread safe', though it is possible under certain race conditons for the pool to go beyond it's configured maximum size by a few items.</para>
-        /// <para>If the maximum pool size is set to zero or less (meaning no limit) then the method returns without doing anything, no instances are added to the pool.</para>
-        /// </remarks>
-        /// <exception cref="System.ObjectDisposedException">Thrown if this method is called on a disposed pool.</exception>
-        public override void Expand()
-        {
-            Expand(PoolPolicy.MaximumPoolSize);
-        }
-
-        /// <summary>
-        /// Creates as many new items as specified by <paramref name="increment"/> and adds them to the pool, but not over it's maximum capacity.
-        /// </summary>
-        /// <param name="increment">The maximum number of items to pre-allocate and add to the pool.</param>
-        /// <remarks>
-        /// <para>This method is 'thread safe', though it is possible under certain race conditons for the pool to go beyond it's configured maximum size by a few items.</para>
-        /// <para>If <paramref name="increment"/> is zero or less the method returns without doing anything</para>
-        /// </remarks>
-        /// <exception cref="System.ObjectDisposedException">Thrown if this method is called on a disposed pool.</exception>
-        public override void Expand(int increment)
-        {
-            CheckDisposed();
-
-            if (increment <= 0) return;
-
-            int createdCount = 0;
-            while (createdCount < increment && !IsPoolFull())
             {
-                _Pool.Add(PoolPolicy.Factory(this));
-                Interlocked.Increment(ref _PoolInstancesCount);
-                createdCount++;
+                SafeDispose((object)value);
+                return false;
             }
+        }
+
+        /// <summary>
+        /// adds to pool array.
+        /// </summary>
+        /// <param name="value"></param>
+        private void Add(T value)
+        {
+            var pool = _pool;
+            for (var i = 0; i < pool.Length; ++i)
+            {
+                if (Interlocked.CompareExchange(ref pool[i].Element, value, null) == null)
+                {
+                    //found empty element to use
+                    Interlocked.Increment(ref _poolInstancesCount);
+                    return;
+                }
+            }
+
+            //pool is full will just disposed this element.
+            SafeDispose((object)value);
         }
 
         #endregion
@@ -190,15 +219,20 @@ namespace ObjectPool
 
                 if (IsPooledTypeDisposable)
                 {
-                    T item;
-
-                    while (!_Pool.IsEmpty)
+                    for (var i = 0; i < _pool.Length; i++)
                     {
-                        _Pool.TryTake(out item);
-                        SafeDispose(item);
+                        if (_pool[i].Element != null)
+                        {
+                            SafeDispose((object)_pool[i].Element);
+                        }
                     }
                 }
             }
+        }
+
+        public override string ToString()
+        {
+            return string.Format("Usage {0}/{1}", _poolInstancesCount.ToString(), this._pool.Length.ToString());
         }
 
         #endregion
@@ -221,19 +255,12 @@ namespace ObjectPool
 
                 if (item != null)
                 {
-                    if (IsDisposed)
+                    if (IsDisposed || IsPoolFull())
                         SafeDispose(item);
                     else
                     {
-                        if (PoolPolicy.ReinitializeObject != null)
-                            PoolPolicy.ReinitializeObject(item);
-
-                        if (ShouldReturnToPool(item))
-                        {
-                            _Pool.Add(item);
-
-                            Interlocked.Increment(ref _PoolInstancesCount);
-                        }
+                        PoolPolicy.Reinitialize(item);
+                        Add(item);
                     }
                 }
             }
@@ -249,29 +276,43 @@ namespace ObjectPool
             catch (InvalidOperationException) { } //Handle race condition on above if condition.
         }
 
-        private void ReinitialiseAndReturnToPoolOrDispose(T value)
-        {
-            if (ShouldReturnToPool(value))
-            {
-                PoolPolicy.ReinitializeObject(value);
-                _Pool.Add(value);
-                Interlocked.Increment(ref _PoolInstancesCount);
-            }
-            else
-                SafeDispose(value);
-        }
+        //private void ProcessReturnedItems()
+        //{
+        //    //Only bother reinitialising items while we're alive.
+        //    //If we're shutdown, even with items left to process, then just ignore them.
+        //    //We're not going to use them anyway.
+        //    while (!_ItemsToInitialise.IsAddingCompleted)
+        //    {
+        //        ReinitialiseAndReturnToPoolOrDispose(_ItemsToInitialise.Take());
+        //    }
 
-        private bool ShouldReturnToPool(T pooledObject)
-        {
-            if (PoolPolicy.ErrorOnIncorrectUsage && _Pool.Contains(pooledObject))
-                throw new InvalidOperationException("Object already exists in pool. Duplicate add detected.");
+        //    //If we're done but the there are disposable items in the queue,
+        //    //dispose each one.
+        //    if (!_ItemsToInitialise.IsCompleted && IsPooledTypeDisposable)
+        //    {
+        //        while (!_ItemsToInitialise.IsCompleted)
+        //        {
+        //            SafeDispose(_ItemsToInitialise.Take());
+        //        }
+        //    }
+        //}
 
-            return !IsPoolFull();
-        }
+        //private void ReinitialiseAndReturnToPoolOrDispose(T value)
+        //{
+        //    if (ShouldReturnToPool(value))
+        //    {
+        //        PoolPolicy.Reinitialize(value);
+        //        _Pool.Add(value);
+        //        Interlocked.Increment(ref _PoolInstancesCount);
+        //    }
+        //    else
+        //        SafeDispose(value);
+        //}
+
 
         private bool IsPoolFull()
         {
-            return (PoolPolicy.MaximumPoolSize > 0 && _PoolInstancesCount >= PoolPolicy.MaximumPoolSize);
+            return (_poolInstancesCount >= PoolPolicy.MaximumPoolSize);
         }
 
         #endregion

@@ -10,10 +10,8 @@ namespace ObjectPool
     /// A wrapper for a pooled object that allows for easily retrieving and returning the item to the pool via the using statement.
     /// </summary>
     /// <remarks>
-    /// <para>In order to make a pool more convenient to use, the pool can contain <see cref="PooledObject{T}"/> references instead of direct {T} references.</para>
-    /// <para>When <see cref="Dispose"/> is called on a <see cref="PooledObject{T}"/> instance, it is returned to the associated pool automatically.</para>
     /// <code>
-    /// using (var wrapper = _Pool.Take())
+    /// using (var wrapper = _Pool.Get())
     /// {
     ///		DoSomethingWithValue(wrapper.Value);
     /// } // Wrapper and it's value will be returned to the pool here.
@@ -22,8 +20,10 @@ namespace ObjectPool
     /// <typeparam name="T">The type of value being pooled.</typeparam>
     public sealed class PooledObject<T> : IDisposable
     {
-        private readonly IPool<PooledObject<T>> _Pool;
-        private readonly T _Value;
+        private bool _isDisposed;
+        private readonly IPool<T> _pool;
+        private readonly T _value;
+
 
         /// <summary>
         /// Full constructor.
@@ -31,28 +31,33 @@ namespace ObjectPool
         /// <param name="pool">A reference to the pool the wrapper should be returned to when <see cref="Dispose"/> is called.</param>
         /// <param name="value">The actual value of interest to the caller.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
-        public PooledObject(IPool<PooledObject<T>> pool, T value)
+        public PooledObject(IPool<T> pool, T value)
         {
-            if (pool == null) throw new ArgumentNullException(nameof(pool));
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            _Pool = pool;
-            _Value = value;
+            _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+            _value = value;
         }
 
         /// <summary>
         /// The actual value of interest.
         /// </summary>
-        public T Value { get { return _Value; } }
+        public T Value { get { return _value; } }
 
         /// <summary>
         /// Rather than disposing the wrapper or the <see cref="Value"/>, returns the wrapper to the pool specified in the wrapper's constructor.
         /// </summary>
         public void Dispose()
         {
+            //check if we already disposed of this object
+            if (_isDisposed)
+            {
+                return;
+            }
+            _isDisposed = true;
             try
             {
-                _Pool.Return(this);
+                _pool.Return(_value);
             }
             catch (ObjectDisposedException)
             {

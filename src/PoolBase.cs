@@ -10,17 +10,14 @@ namespace ObjectPool
     /// Base class providing code re-use among multiple pool implementations. Should not be used directly by calling code, instead use <see cref="IPool{T}"/> for references.
     /// </summary>
     /// <typeparam name="T">The type of value being pooled.</typeparam>
-    public abstract class PoolBase<T> : IPool<T>
+    public abstract class PoolBase<T> : IPool<T> where T:class
     {
 
         #region Fields
 
-        private readonly PoolPolicy<T> _PoolPolicy;
-        private readonly bool _IsPooledTypeDisposable;
-        private readonly bool _IsPooledTypeWrapped;
-        private PropertyInfo _PooledObjectValueProperty;
-
-        private bool _IsDisposed;
+        private readonly IPoolPolicy<T> _poolPolicy;
+        private readonly bool _isPooledTypeDisposable;
+        private bool _isDisposed;
 
         #endregion
 
@@ -31,16 +28,11 @@ namespace ObjectPool
         /// </summary>
         /// <param name="poolPolicy">A <seealso cref="PoolPolicy{T}"/> instance containing configuration information for the pool.</param>
         /// <exception cref="System.ArgumentNullException">Thrown if the <paramref name="poolPolicy"/> argument is null.</exception>
-        /// <exception cref="System.ArgumentException">Thrown if the <see cref="PoolPolicy{T}.Factory"/> property of the <paramref name="poolPolicy"/> argument is null.</exception>
-        protected PoolBase(PoolPolicy<T> poolPolicy)
+        /// <exception cref="System.ArgumentException">Thrown if the <see cref="PoolPolicy{T}._factory"/> property of the <paramref name="poolPolicy"/> argument is null.</exception>
+        protected PoolBase(IPoolPolicy<T> poolPolicy)
         {
-            if (poolPolicy == null) throw new ArgumentNullException(nameof(poolPolicy));
-            if (poolPolicy.Factory == null) throw new ArgumentException("poolPolicy.Factory cannot be null");
-
-            _IsPooledTypeWrapped = IsTypeWrapped(typeof(T));
-            _IsPooledTypeDisposable = IsTypeDisposable(typeof(T), _IsPooledTypeWrapped);
-
-            _PoolPolicy = poolPolicy;
+            _poolPolicy = poolPolicy ?? throw new ArgumentNullException(nameof(poolPolicy));
+            _isPooledTypeDisposable =   typeof(IDisposable).IsAssignableFrom(typeof(T)); 
         }
 
         #endregion
@@ -59,25 +51,25 @@ namespace ObjectPool
         {
             get
             {
-                return _IsDisposed;
+                return _isDisposed;
             }
         }
 
-        /// <summary>
-        /// Disposes this pool and all contained objects (if they are disposable).
-        /// </summary>
-        /// <remarks>
-        /// <para>A pool can only be disposed once, calling this method multiple times will have no effect after the first invocation.</para>
-        /// </remarks>
-        /// <seealso cref="IsDisposed"/>
-        /// <seealso cref="Dispose(bool)"/>
+#pragma warning disable CA1063 // Implement IDisposable Correctly
+                              /// <summary>
+                              /// Disposes this pool and all contained objects (if they are disposable).
+                              /// </summary>
+                              /// <remarks>
+                              /// <para>A pool can only be disposed once, calling this method multiple times will have no effect after the first invocation.</para>
+                              /// </remarks>
         public void Dispose()
+#pragma warning restore CA1063 // Implement IDisposable Correctly
         {
-            if (_IsDisposed) return;
+            if (_isDisposed) return;
 
             try
             {
-                _IsDisposed = true;
+                _isDisposed = true;
 
                 Dispose(true);
             }
@@ -100,7 +92,7 @@ namespace ObjectPool
         /// </summary>
         protected void CheckDisposed()
         {
-            if (_IsDisposed) throw new ObjectDisposedException(this.GetType().FullName);
+            if (_isDisposed) throw new ObjectDisposedException(this.GetType().FullName);
         }
 
         #endregion
@@ -108,14 +100,14 @@ namespace ObjectPool
         #region Public Properties
 
         /// <summary>
-        /// Provides access to the <see cref="PoolPolicy"/> passed in the constructor.
+        /// Provides access to the <see cref="IPoolPolicy"/> passed in the constructor.
         /// </summary>
         /// <seealso cref="PoolBase{T}"/>
-        protected PoolPolicy<T> PoolPolicy
+        protected IPoolPolicy<T> PoolPolicy
         {
             get
             {
-                return _PoolPolicy;
+                return _poolPolicy;
             }
         }
 
@@ -126,18 +118,7 @@ namespace ObjectPool
         {
             get
             {
-                return _IsPooledTypeDisposable;
-            }
-        }
-
-        /// <summary>
-        /// Returns a boolean indicating if {T} is actually a <seealso cref="PooledObject{T}"/>.
-        /// </summary>
-        protected bool IsPooledTypeWrapped
-        {
-            get
-            {
-                return _IsPooledTypeWrapped;
+                return _isPooledTypeDisposable;
             }
         }
 
@@ -152,14 +133,6 @@ namespace ObjectPool
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "object")]
         protected void SafeDispose(object pooledObject)
         {
-            if (IsPooledTypeWrapped)
-            {
-                if (_PooledObjectValueProperty == null)
-                    _PooledObjectValueProperty = typeof(T).GetProperty("Value");
-
-                pooledObject = _PooledObjectValueProperty.GetValue(pooledObject, null);
-            }
-
             (pooledObject as IDisposable)?.Dispose();
         }
 
@@ -171,18 +144,7 @@ namespace ObjectPool
         /// Abstract method for adding or returning an instance to the pool.
         /// </summary>
         /// <param name="value">The instance to add or return to the pool.</param>
-        public abstract void Return(T value);
-
-        /// <summary>
-        /// Abstract method for filling the pool up to it's maximum size with pre-pooled instances.
-        /// </summary>
-        public abstract void Expand();
-
-        /// <summary>
-        /// Abstract method for adding a specified number of pre-pooled instances.
-        /// </summary>
-        /// <param name="increment">The number of instances to add to the pool.</param>
-        public abstract void Expand(int increment);
+        public abstract bool Return(T value);
 
         /// <summary>
         /// Abstract method for retrieving an item from the pool. 
@@ -190,32 +152,12 @@ namespace ObjectPool
         /// <returns>An instance of {T}.</returns>
         public abstract T Get();
 
+        /// <summary>
+        /// Abstract method for retrieving an PooledObject from the pool. 
+        /// </summary>
+        /// <returns>An instance of {T}.</returns>
+        public abstract PooledObject<T> GetPooledObject();
+
         #endregion
-
-
-        private static bool IsTypeWrapped(Type type)
-        {
-            return type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(PooledObject<>));
-        }
-
-
-        private static bool IsTypeDisposable(Type type, bool isTypeWrapped)
-        {
-            if (isTypeWrapped)
-            {
-                type = type.GetGenericArguments()[0];
-            }
-
-          var interfaces=type.GetInterfaces();
-            for(var i = 0; i < interfaces.Length; i++)
-            {
-               if(interfaces[i]== typeof(IDisposable))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }
