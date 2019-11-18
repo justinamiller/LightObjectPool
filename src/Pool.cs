@@ -216,7 +216,7 @@ namespace ObjectPool
             if (disposing)
             {
                 _ItemsToInitialise?.CompleteAdding();
-
+                _ItemsToInitialise?.Dispose();
                 if (IsPooledTypeDisposable)
                 {
                     for (var i = 0; i < _pool.Length; i++)
