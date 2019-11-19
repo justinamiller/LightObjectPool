@@ -35,9 +35,9 @@ namespace LightObjectPool
             _isPooledTypeDisposable =   typeof(IDisposable).IsAssignableFrom(typeof(T)); 
         }
 
-        #endregion
+#endregion
 
-        #region IDisposable & Related Implementation 
+#region IDisposable & Related Implementation 
 
         /// <summary>
         /// Disposes this pool and all contained objects (if they are disposable).
@@ -95,9 +95,9 @@ namespace LightObjectPool
             if (_isDisposed) throw new ObjectDisposedException(this.GetType().FullName);
         }
 
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
 
         /// <summary>
         /// Provides access to the <see cref="IPoolPolicy"/> passed in the constructor.
@@ -122,9 +122,9 @@ namespace LightObjectPool
             }
         }
 
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
 
         /// <summary>
         /// Disposes <paramref name="pooledObject"/> if it is not null and supports <see cref="IDisposable"/>, otherwise does nothing. If <paramref name="pooledObject"/> is actually a <see cref="PooledObject{T}"/> instance, then disposes the <see cref="PooledObject{T}.Value"/> property instead.
@@ -136,9 +136,9 @@ namespace LightObjectPool
             (pooledObject as IDisposable)?.Dispose();
         }
 
-        #endregion
+#endregion
 
-        #region Abstract IPool<T> Members
+#region Abstract IPool<T> Members
 
         /// <summary>
         /// Abstract method for adding or returning an instance to the pool.
@@ -158,6 +158,6 @@ namespace LightObjectPool
         /// <returns>An instance of {T}.</returns>
         public abstract PooledObject<T> GetPooledObject();
 
-        #endregion
+#endregion
     }
 }
