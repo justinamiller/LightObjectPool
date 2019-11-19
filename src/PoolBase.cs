@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace LightObjectPool
 {
@@ -90,6 +91,9 @@ namespace LightObjectPool
         /// <summary>
         /// Throws a <see cref="ObjectDisposedException"/> if the <see cref="Dispose()"/> method has been called.
         /// </summary>
+#if !NET40
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         protected void CheckDisposed()
         {
             if (_isDisposed) throw new ObjectDisposedException(this.GetType().FullName);
