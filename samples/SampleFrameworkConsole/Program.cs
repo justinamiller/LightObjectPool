@@ -61,18 +61,36 @@ namespace SampleFrameworkConsole
                 item.Value.Append("Testl");
             }
 
-            //var poolPolicyTest = new PoolPolicy<StringBuilder>((p) => new PooledObject<StringBuilder>(p, new StringBuilder()), (jw) => jw.Clear(), 10, PooledItemInitialization.Return);
-            //var poolTest = new Pool<PooledObject<StringBuilder>>(poolPolicyTest);
-            //Retrieve an instance from the pool
-    //        using (var pooledItem =Pool.Get())
-    //{
-    //            //pooledItem.Value is the object you actually want.
-    //            //If the pool is for tyhe type PooledObject<System.Text.StringBuilder> then
-    //            //you can access the string builder instance like this;
-    //            pooledItem.Value.Append("Some text to add to the builder");
 
-    //        } // The item will automatically be returned to the pool here.
+            ThreadingTest();
+        }
 
+       private static void ThreadingTest()
+        {
+            var pool = LightObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
+
+            var t1 = System.Threading.Tasks.Task.Run(() =>
+            {
+                System.Threading.Tasks.Parallel.For(1, 10000, (i) =>
+                {
+                    var sb = pool.Get();
+                    sb.Append("this is a test message");
+                    sb.AppendLine("this is a test message");
+                    pool.Return(sb);
+                });
+            });
+
+            var t2 = System.Threading.Tasks.Task.Run(() =>
+            {
+                System.Threading.Tasks.Parallel.For(1, 10000, (i) =>
+                {
+                    var sb = pool.Get();
+                    sb.Append("testing");
+                    pool.Return(sb);
+                });
+            });
+
+            System.Threading.Tasks.Task.WaitAll(t1, t2);
         }
     }
 }

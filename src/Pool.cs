@@ -5,6 +5,7 @@ using System.Text;
 using System.Reflection;
 using System.Threading;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace LightObjectPool
 {
@@ -19,6 +20,14 @@ namespace LightObjectPool
         public static Pool<T> Create<T>(Action<T> reinitializeObject, int maximumPoolSize) where T : class, new()
         {
             return new Pool<T>(new DefaultPoolPolicy<T>(reinitializeObject, maximumPoolSize));
+        }
+        /// <summary>
+        /// Creates StringBuilder with reset object state on return.
+        /// </summary>
+        /// <returns></returns>
+        public static IPool<StringBuilder> CreateStringBuilderPool()
+        {
+            return Pool.Create<StringBuilder>((sb) => sb.Clear(), Environment.ProcessorCount * 2);
         }
     }
 
@@ -48,8 +57,10 @@ namespace LightObjectPool
         }
 
         #region Fields
+        private protected readonly int _poolSize;
         private protected readonly ObjectWrapper[] _pool;
         private int _poolInstancesCount;
+
 
         #endregion
 
@@ -65,6 +76,7 @@ namespace LightObjectPool
         public Pool(IPoolPolicy<T> poolPolicy) : base(poolPolicy)
         {
             _pool = new ObjectWrapper[PoolPolicy.MaximumPoolSize];
+            _poolSize = _pool.Length;
         }
 
         #endregion
@@ -87,7 +99,7 @@ namespace LightObjectPool
 
             T retVal;
             var pool = _pool;
-            for (var i = 0; i < pool.Length; i++)
+            for (var i = 0; i < _poolSize; i++)
             {
                 retVal = pool[i].Element;
                 if (retVal != null && Interlocked.CompareExchange(ref pool[i].Element, null, retVal) == retVal)
@@ -169,7 +181,7 @@ namespace LightObjectPool
             }
 
             var pool = _pool;
-            for (var i = 0; i < pool.Length; ++i)
+            for (var i = 0; i < _poolSize; ++i)
             {
                 if (Interlocked.CompareExchange(ref pool[i].Element, value, null) == null)
                 {
@@ -196,7 +208,7 @@ namespace LightObjectPool
             }
             
             var pool = _pool;
-            for (var i = 0; i < pool.Length; ++i)
+            for (var i = 0; i < _poolSize; ++i)
             {
                 var item = pool[i].Element;
                 if(item!=null && value.Equals(item))
@@ -223,7 +235,7 @@ namespace LightObjectPool
             {
                 if (IsPooledTypeDisposable)
                 {
-                    for (var i = 0; i < _pool.Length; i++)
+                    for (var i = 0; i < _poolSize; i++)
                     {
                         if (_pool[i].Element != null)
                         {
@@ -236,16 +248,17 @@ namespace LightObjectPool
 
         public override string ToString()
         {
-            return string.Format("Usage {0}/{1}", _poolInstancesCount.ToString(), this._pool.Length.ToString());
+            return string.Format("Usage {0}/{1}", _poolInstancesCount.ToString(), this._poolSize.ToString());
         }
 
         #endregion
 
         #region Private Methods
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsPoolFull()
         {
-            return (_poolInstancesCount >= PoolPolicy.MaximumPoolSize);
+            return _poolInstancesCount >= _poolSize;
         }
 
         #endregion
