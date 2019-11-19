@@ -32,19 +32,12 @@ Create a new Pool<T> instance passing the pool policy you created. Pool policies
 ```C#
 
     using ObjectPool;
-    // Define a policy. This policy;
     //  Is for a StringBuilder pool.
     //  Synchronously resets the StringBuilder state when the item is returned to the pool.
     //  Pools at most 10 instances
-
-    var policy = new PoolPolicy<System.Text.StringBuilder>()
-    {
-    	Factory = (poolInstance) => new System.Text.StringBuilder(),
-    	InitializationPolicy = PooledItemInitialization.Return,
-    	MaximumPoolSize = 10,
-    	ReinitializeObject = (sb) => sb.Clear()
-    };
     
+    var pool = ObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
+
 ```
 
 ### Using a Pool
