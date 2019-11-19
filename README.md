@@ -40,7 +40,7 @@ Create a new Pool<T> instance passing the pool policy you created. Pool policies
 ```
 
 ### Using a Pool
-Use the ADD method to retrieve an instance from the pool. Use the RETURN method to return an instance to the pool so it can be re-used.
+Use the GET method to retrieve an instance from the pool. Use the RETURN method to return an instance to the pool so it can be re-used.
 
 ```C#
     //Retrieve an instance from the pool
