@@ -15,11 +15,11 @@ namespace SampleFrameworkConsole
         {
 
             //   var p = Microsoft.Extensions.ObjectPool.ObjectPool.Create<System.Threading.Tasks.Task>();
-            var poolPolicy1 = new PoolPolicy<System.IO.MemoryStream>((poolInstance) => new System.IO.MemoryStream(), (jw) => jw.Position = 0, 10, PooledItemInitialization.Return);
+            var poolPolicy1 = new PoolPolicy<System.IO.MemoryStream>((poolInstance) => new System.IO.MemoryStream(), (jw) => jw.Position = 0, 10);
             var pool1 = new Pool<System.IO.MemoryStream>(poolPolicy1);
 
 
-            var poolPolicy = new PoolPolicy<StringBuilder>((poolInstance) => new StringBuilder(), (jw) => jw.Clear(), 10, PooledItemInitialization.Return);
+            var poolPolicy = new PoolPolicy<StringBuilder>((poolInstance) => new StringBuilder(), (jw) => jw.Clear(), 10);
             //{
             //    Factory = (poolInstance) => new StringBuilder(),
             //    InitializationPolicy = PooledItemInitialization.Return,
