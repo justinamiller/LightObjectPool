@@ -66,7 +66,7 @@ Then you can use auto-return like this;
 
 ```C#
     //Retrieve an instance from the pool
-    using (var pooledItem pool.Take())
+    using (var pooledItem= pool.GetPooledObject())
     {
         //pooledItem.Value is the object you actually want.
         //If the pool is for tyhe type PooledObject<System.Text.StringBuilder> then
