@@ -1,5 +1,3 @@
-[![NuGet Badge](https://buildstats.info/nuget/LightObjectPool)](https://www.nuget.org/packages/LightObjectPool/)
-
 # LightObjectPool
 
 ## What is LightObjectPool ?
@@ -22,6 +20,7 @@ Install the Nuget package like this;
 ```powershell
     PM> Install-Package LightObjectPool
 ```
+[![NuGet Badge](https://buildstats.info/nuget/LightObjectPool)](https://www.nuget.org/packages/LightObjectPool/)
 
 Or reference the LightObjectPool.dll assembly that matches your app's platform.
 
