@@ -50,9 +50,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ObjectPool.csproj">
+    <ProjectReference Include="..\..\src\LightObjectPool.csproj">
       <Project>{af5de074-1bd0-4148-aba0-ccf42f8523fc}</Project>
-      <Name>ObjectPool</Name>
+      <Name>LightObjectPool</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

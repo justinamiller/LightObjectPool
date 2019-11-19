@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     /// <summary>
     /// Provides configuration controlling how an object pool works.
@@ -11,22 +11,18 @@ namespace ObjectPool
     /// </summary>
     /// <typeparam name="T">The type of item being pooled.</typeparam>
     /// <seealso cref="PooledItemInitialization"/>
-    /// <seealso cref="ObjectPool.Pool{T}"/>
+    /// <seealso cref="LightObjectPool.Pool{T}"/>
     public class DefaultPoolPolicy<T> : IPoolPolicy<T> where T : class, new()
     {
         private readonly Action<T> _reinitializeObject = null;
 
         public int MaximumPoolSize { get; }
 
-        public PooledItemInitialization InitializationPolicy { get; }
         
-        
-        public DefaultPoolPolicy(Action<T> reinitializeObject=null, int maxPoolSize = 10, PooledItemInitialization initializePolicy = PooledItemInitialization.Return)
+        public DefaultPoolPolicy(Action<T> reinitializeObject=null, int maxPoolSize = 10)
         {
             _reinitializeObject = reinitializeObject;
             MaximumPoolSize = maxPoolSize > 0 ? maxPoolSize : Environment.ProcessorCount * 2;
-            this.InitializationPolicy = initializePolicy;
-            
         }
 
 

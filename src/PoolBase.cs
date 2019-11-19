@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Linq;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     /// <summary>
     /// Base class providing code re-use among multiple pool implementations. Should not be used directly by calling code, instead use <see cref="IPool{T}"/> for references.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     public interface IPoolPolicy<T>
     {
@@ -14,11 +14,6 @@ namespace ObjectPool
         /// <para>This restricts the number of instances stored in the pool at any given time, it does not represent the maximum number of items that may be generated or exist in memory at any given time. If the pool is empty and a new item is requested, a new instance will be created even if pool was previously full and all it's instances have been taken already.</para>
         /// </remarks>
          int MaximumPoolSize { get; }
-
-        /// <summary>
-        /// A value from the <see cref="PooledItemInitialization"/> enum specifying when and how pooled items are re-initialised.
-        /// </summary>
-        PooledItemInitialization InitializationPolicy { get; }
 
         /// <summary>
         /// A function that returns a new item for the pool. Used when the pool is empty and a new item is requested.

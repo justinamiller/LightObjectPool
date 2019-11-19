@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\ObjectPool.csproj" />
+    <ProjectReference Include="..\..\src\LightObjectPool.csproj" />
   </ItemGroup>
 
 </Project>

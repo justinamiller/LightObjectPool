@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     /// <summary>
     /// Interface for a simple object pool.
     /// </summary>
     /// <typeparam name="T">The type of value being pooled.</typeparam>
-    /// <seealso cref="ObjectPool.Pool{T}"/>
+    /// <seealso cref="LightObjectPool.Pool{T}"/>
     /// <seealso cref="PooledObject{T}"/>
     /// <seealso cref="PoolPolicy{T}"/>
     public interface IPool<T> : IDisposable

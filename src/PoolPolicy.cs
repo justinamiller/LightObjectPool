@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     /// <summary>
     /// Provides configuration controlling how an object pool works.
     /// </summary>
     /// <typeparam name="T">The type of item being pooled.</typeparam>
     /// <seealso cref="PooledItemInitialization"/>
-    /// <seealso cref="ObjectPool.Pool{T}"/>
+    /// <seealso cref="LightObjectPool.Pool{T}"/>
     public class PoolPolicy<T>:IPoolPolicy<T>
     {
         /// <summary>
@@ -18,7 +18,7 @@ namespace ObjectPool
         /// </summary>
         /// <remarks>
         /// <para>Should return a new, clean item, ready for use by the caller. Takes a single argument being a reference to the pool that was asked for the object, useful if you're creating <see cref="PooledObject{T}"/> instances.</para>
-        /// <para>Cannot be null. If null when provided to a <see cref="ObjectPool.Pool{T}"/> instance, an exception will be thrown.</para>
+        /// <para>Cannot be null. If null when provided to a <see cref="LightObjectPool.Pool{T}"/> instance, an exception will be thrown.</para>
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         private readonly Func<IPool<T>, T> _factory;
@@ -39,12 +39,8 @@ namespace ObjectPool
         /// <para>This restricts the number of instances stored in the pool at any given time, it does not represent the maximum number of items that may be generated or exist in memory at any given time. If the pool is empty and a new item is requested, a new instance will be created even if pool was previously full and all it's instances have been taken already.</para>
         /// </remarks>
         public int MaximumPoolSize { get; }
-        /// <summary>
-        /// A value from the <see cref="PooledItemInitialization"/> enum specifying when and how pooled items are re-initialised.
-        /// </summary>
-        public PooledItemInitialization InitializationPolicy { get; }
 
-        public PoolPolicy(Func<IPool<T>, T> factory, Action<T> reinitializeObject = null, int maxPoolSize = 10, PooledItemInitialization initializePolicy = PooledItemInitialization.Return)
+        public PoolPolicy(Func<IPool<T>, T> factory, Action<T> reinitializeObject = null, int maxPoolSize = 10)
         {
             if (0 >= maxPoolSize)
             {
@@ -53,7 +49,6 @@ namespace ObjectPool
             this._factory = factory ?? throw new NullReferenceException(nameof(factory));
 
             this.MaximumPoolSize = maxPoolSize;
-            this.InitializationPolicy = initializePolicy;
             this._reinitializeObject = reinitializeObject;
         }
 

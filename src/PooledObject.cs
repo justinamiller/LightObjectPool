@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     /// <summary>
     /// A wrapper for a pooled object that allows for easily retrieving and returning the item to the pool via the using statement.

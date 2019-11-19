@@ -1,4 +1,4 @@
-﻿using ObjectPool;
+﻿using LightObjectPool;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,10 +29,18 @@ namespace SampleFrameworkConsole
 
             Pool = new Pool<StringBuilder>(poolPolicy);
 
-            var sb = Pool.Get();
-            var sb1 = Pool.Get();
+            var test = LightObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
 
+            var sb = Pool.Get();
+            Pool.Return(sb);
+            sb.Append("Test");
+            Pool.Return(sb);
+            var sb1 = Pool.Get();
+            sb1.Append("HELLO");
             var sb2 = Pool.Get();
+            sb2.Append("Test");
+            Pool.Return(sb1);
+            Pool.Return(sb2);
             var sb3 = Pool.Get();
             Pool.Return(sb1);
             var sb4 = Pool.Get();

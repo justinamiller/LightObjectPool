@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Diagnostics;
 
-namespace ObjectPool
+namespace LightObjectPool
 {
     public static class Pool
     {
@@ -16,7 +16,7 @@ namespace ObjectPool
         }
 
 
-        public static Pool<T> Create<T>(Action<T> reinitializeObject = null, int maximumPoolSize = 0) where T : class, new()
+        public static Pool<T> Create<T>(Action<T> reinitializeObject, int maximumPoolSize) where T : class, new()
         {
             return new Pool<T>(new DefaultPoolPolicy<T>(reinitializeObject, maximumPoolSize));
         }
@@ -49,7 +49,6 @@ namespace ObjectPool
 
         #region Fields
         private protected readonly ObjectWrapper[] _pool;
-        private readonly System.Collections.Concurrent.BlockingCollection<T> _ItemsToInitialise;
         private int _poolInstancesCount;
 
         #endregion
@@ -66,12 +65,6 @@ namespace ObjectPool
         public Pool(IPoolPolicy<T> poolPolicy) : base(poolPolicy)
         {
             _pool = new ObjectWrapper[PoolPolicy.MaximumPoolSize];
-            if (PoolPolicy.InitializationPolicy == PooledItemInitialization.AsyncReturn)
-            {
-                _ItemsToInitialise = new System.Collections.Concurrent.BlockingCollection<T>();
-
-                System.Threading.Tasks.Task.Factory.StartNew(this.BackgroundReinitialise, System.Threading.Tasks.TaskCreationOptions.LongRunning);
-            }
         }
 
         #endregion
@@ -100,11 +93,7 @@ namespace ObjectPool
                 if (retVal != null && Interlocked.CompareExchange(ref pool[i].Element, null, retVal) == retVal)
                 {
                     Interlocked.Decrement(ref _poolInstancesCount);
-                    if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Take)
-                    {
                         PoolPolicy.Reinitialize(retVal);
-                    }
-
 
                     return retVal;
                 }
@@ -156,22 +145,9 @@ namespace ObjectPool
             //check if pool is full
             if (!IsPoolFull())
             {
-                if (PoolPolicy.InitializationPolicy == PooledItemInitialization.AsyncReturn)
-                {
-                    SafeAddToReinitialiseQueue(value);
-                    return true;
-                }
-                else
-                {
-                    if (PoolPolicy.InitializationPolicy == PooledItemInitialization.Return)
-                    {
-                        PoolPolicy.Reinitialize(value);
-                    }
-
                     Add(value);
 
                     return true;
-                }
             }
             else
             {
@@ -186,6 +162,12 @@ namespace ObjectPool
         /// <param name="value"></param>
         private void Add(T value)
         {
+            //check if value has been alraedy returned
+            if (Contains(value))
+            {
+                return;
+            }
+
             var pool = _pool;
             for (var i = 0; i < pool.Length; ++i)
             {
@@ -199,6 +181,30 @@ namespace ObjectPool
 
             //pool is full will just disposed this element.
             SafeDispose((object)value);
+        }
+
+        /// <summary>
+        /// used to capture if value has already been returned
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private bool Contains(T value)
+        {
+            if (_poolInstancesCount == 0)
+            {
+                return false;
+            }
+            
+            var pool = _pool;
+            for (var i = 0; i < pool.Length; ++i)
+            {
+                var item = pool[i].Element;
+                if(item!=null && value.Equals(item))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         #endregion
@@ -215,8 +221,6 @@ namespace ObjectPool
         {
             if (disposing)
             {
-                _ItemsToInitialise?.CompleteAdding();
-                _ItemsToInitialise?.Dispose();
                 if (IsPooledTypeDisposable)
                 {
                     for (var i = 0; i < _pool.Length; i++)
@@ -238,77 +242,6 @@ namespace ObjectPool
         #endregion
 
         #region Private Methods
-
-        private void BackgroundReinitialise()
-        {
-            T item = default;
-            while (!_ItemsToInitialise.IsCompleted)
-            {
-                try
-                {
-                    item = _ItemsToInitialise.Take();
-                }
-                catch (InvalidOperationException)
-                {
-                    if (_ItemsToInitialise.IsCompleted) return;
-                }
-
-                if (item != null)
-                {
-                    if (IsDisposed || IsPoolFull())
-                        SafeDispose(item);
-                    else
-                    {
-                        PoolPolicy.Reinitialize(item);
-                        Add(item);
-                    }
-                }
-            }
-        }
-
-        private void SafeAddToReinitialiseQueue(T pooledObject)
-        {
-            try
-            {
-                if (!_ItemsToInitialise.IsAddingCompleted)
-                    _ItemsToInitialise.Add(pooledObject);
-            }
-            catch (InvalidOperationException) { } //Handle race condition on above if condition.
-        }
-
-        //private void ProcessReturnedItems()
-        //{
-        //    //Only bother reinitialising items while we're alive.
-        //    //If we're shutdown, even with items left to process, then just ignore them.
-        //    //We're not going to use them anyway.
-        //    while (!_ItemsToInitialise.IsAddingCompleted)
-        //    {
-        //        ReinitialiseAndReturnToPoolOrDispose(_ItemsToInitialise.Take());
-        //    }
-
-        //    //If we're done but the there are disposable items in the queue,
-        //    //dispose each one.
-        //    if (!_ItemsToInitialise.IsCompleted && IsPooledTypeDisposable)
-        //    {
-        //        while (!_ItemsToInitialise.IsCompleted)
-        //        {
-        //            SafeDispose(_ItemsToInitialise.Take());
-        //        }
-        //    }
-        //}
-
-        //private void ReinitialiseAndReturnToPoolOrDispose(T value)
-        //{
-        //    if (ShouldReturnToPool(value))
-        //    {
-        //        PoolPolicy.Reinitialize(value);
-        //        _Pool.Add(value);
-        //        Interlocked.Increment(ref _PoolInstancesCount);
-        //    }
-        //    else
-        //        SafeDispose(value);
-        //}
-
 
         private bool IsPoolFull()
         {
