@@ -11,6 +11,7 @@ namespace LightObjectPool.Tests
         public void TestPool()
         {
             var pool = LightObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
+            Assert.IsFalse(string.IsNullOrEmpty(pool.ToString()));
            var sb=pool.Get();
             Assert.IsNotNull(sb);
            pool.Return(sb);
@@ -52,6 +53,7 @@ namespace LightObjectPool.Tests
                     Assert.IsTrue(item.Value.Length == 0);
                     item.Value.Append("Testing");
                     Assert.IsTrue(item.Value.Length > 0);
+                    item.Dispose();
                 }
             }
         }
