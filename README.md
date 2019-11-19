@@ -1,6 +1,6 @@
-# ObjectPool
+# LightObjectPool
 
-## What is ObjectPool ?
+## What is LightObjectPool ?
 A simple, light weight, thread safe object pool.
 
 It also supports pooling of disposable types, managing the life time of pooled objects and performing early dispose when possible.
@@ -18,12 +18,12 @@ Currently;
 Install the Nuget package like this;
 
 ```powershell
-    PM> Install-Package ObjectPool
+    PM> Install-Package LightObjectPool
 ```
 
-[![NuGet Badge](https://buildstats.info/nuget/ObjectPool)](https://www.nuget.org/packages/ObjectPool/)
+[![NuGet Badge](https://buildstats.info/nuget/LightObjectPool)](https://www.nuget.org/packages/LightObjectPool/)
 
-Or reference the ObjectPool.dll assembly that matches your app's platform.
+Or reference the LightObjectPool.dll assembly that matches your app's platform.
 
 ### Creating a Pool
 Create a PoolPolicy<T> instance to configure options and behaviour for the pool, T is the type of item being pooled.
@@ -31,12 +31,12 @@ Create a new Pool<T> instance passing the pool policy you created. Pool policies
 
 ```C#
 
-    using ObjectPool;
+    using LightObjectPool;
     //  Is for a StringBuilder pool.
     //  Synchronously resets the StringBuilder state when the item is returned to the pool.
     //  Pools at most 10 instances
     
-    var pool = ObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
+    var pool = LightObjectPool.Pool.Create<StringBuilder>((s) => s.Clear(), 10);
 
 ```
 
