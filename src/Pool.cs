@@ -254,8 +254,9 @@ namespace LightObjectPool
         #endregion
 
         #region Private Methods
-
+#if !NET40
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         private bool IsPoolFull()
         {
             return _poolInstancesCount >= _poolSize;
