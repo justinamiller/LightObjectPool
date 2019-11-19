@@ -13,7 +13,7 @@ namespace SampleFrameworkConsole
         public static IPool<StringBuilder> Pool { get; private set; }
         static void Main(string[] args)
         {
-
+            System.Threading.Thread.Sleep(100);
             //   var p = Microsoft.Extensions.ObjectPool.ObjectPool.Create<System.Threading.Tasks.Task>();
             var poolPolicy1 = new PoolPolicy<System.IO.MemoryStream>((poolInstance) => new System.IO.MemoryStream(), (jw) => jw.Position = 0, 10);
             var pool1 = new Pool<System.IO.MemoryStream>(poolPolicy1);
