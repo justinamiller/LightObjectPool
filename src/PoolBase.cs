@@ -11,7 +11,7 @@ namespace LightObjectPool
     /// Base class providing code re-use among multiple pool implementations. Should not be used directly by calling code, instead use <see cref="IPool{T}"/> for references.
     /// </summary>
     /// <typeparam name="T">The type of value being pooled.</typeparam>
-    public abstract class PoolBase<T> : IPool<T> where T:class
+     public abstract class PoolBase<T> : IPool<T> where T:class
     {
 
         #region Fields

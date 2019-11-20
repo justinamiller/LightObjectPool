@@ -8,7 +8,7 @@ namespace LightObjectPool
     /// Interface for a simple object pool.
     /// </summary>
     /// <typeparam name="T">The type of value being pooled.</typeparam>
-    /// <seealso cref="LightObjectPool.Pool{T}"/>
+    /// <seealso cref="Pool{T}"/>
     /// <seealso cref="PooledObject{T}"/>
     /// <seealso cref="PoolPolicy{T}"/>
     public interface IPool<T> : IDisposable
