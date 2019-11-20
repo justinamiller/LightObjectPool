@@ -105,7 +105,7 @@ namespace LightObjectPool
                 if (retVal != null && Interlocked.CompareExchange(ref pool[i].Element, null, retVal) == retVal)
                 {
                     Interlocked.Decrement(ref _poolInstancesCount);
-                        PoolPolicy.Reinitialize(retVal);
+                    PoolPolicy.Reinitialize(retVal);
 
                     return retVal;
                 }
@@ -157,9 +157,9 @@ namespace LightObjectPool
             //check if pool is full
             if (!IsPoolFull())
             {
-                    Add(value);
+                Add(value);
 
-                    return true;
+                return true;
             }
             else
             {
@@ -206,12 +206,12 @@ namespace LightObjectPool
             {
                 return false;
             }
-            
+
             var pool = _pool;
             for (var i = 0; i < _poolSize; ++i)
             {
                 var item = pool[i].Element;
-                if(item!=null && value.Equals(item))
+                if (item != null && value.Equals(item))
                 {
                     return true;
                 }

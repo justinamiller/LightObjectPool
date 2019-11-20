@@ -25,10 +25,11 @@ namespace LightObjectPool
             MaximumPoolSize = maxPoolSize > 0 ? maxPoolSize : Environment.ProcessorCount * 2;
         }
 
-
         public T Create(IPool<T> pool)
         {
+#pragma warning disable HAA0502 // Explicit new reference type allocation
             return new T();
+#pragma warning restore HAA0502 // Explicit new reference type allocation
         }
 
         public void Reinitialize(T obj)
