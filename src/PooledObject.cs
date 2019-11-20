@@ -33,7 +33,10 @@ namespace LightObjectPool
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public PooledObject(IPool<T> pool, T value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             _pool = pool ?? throw new ArgumentNullException(nameof(pool));
             _value = value;

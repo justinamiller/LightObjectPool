@@ -1,12 +1,78 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace LightObjectPool.Tests
 {
+    [ExcludeFromCodeCoverageAttribute]
     [TestClass]
     public class PoolShould
     {
+        [TestMethod]
+        public void TestNullPoolPolicy()
+        {
+            try
+            {
+                var p = new Pool<StringBuilder>(null);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+                var p = new PoolPolicy<StringBuilder>(null, null, 10);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+                var pool = new PoolPolicy<StringBuilder>(null, (p) => p.Clear(), 10);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+
+                var pool = new PoolPolicy<StringBuilder>((pa) => new StringBuilder(), (p) => p.Clear(), 0);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+                var pool = new PoolPolicy<StringBuilder>((p)=>new StringBuilder(),  (p)=>p.Clear(), 10);
+                Assert.IsTrue(true);
+            }
+            catch (Exception)
+            {
+                Assert.Fail(); 
+            }
+
+            try
+            {
+                var pool = new PoolPolicy<StringBuilder>((p) => new StringBuilder(), null, 10);
+                Assert.IsTrue(true);
+            }
+            catch (Exception)
+            {
+                Assert.Fail();
+            }
+        }
         [TestMethod]
         public void TestPool()
         {
@@ -56,6 +122,39 @@ namespace LightObjectPool.Tests
                     item.Dispose();
                 }
             }
+
+
+            try
+            {
+                var p = new PooledObject<StringBuilder>(null, null);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+                var p = new PooledObject<StringBuilder>(pool, null);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+            try
+            {
+                var p = new PooledObject<StringBuilder>(null, new StringBuilder());
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.IsTrue(true);
+            }
+
+
         }
 
         [TestMethod]
@@ -146,6 +245,52 @@ namespace LightObjectPool.Tests
 
             pool.Return(sb3);
             Assert.IsFalse(sb3.CanRead);
+        }
+
+        [TestMethod]
+        public void TestPoolPolicy()
+        {
+            var pool = new Pool<StringBuilder>(new PoolPolicy<StringBuilder>((p)=>new StringBuilder(),(s) => s.Clear(), 10));
+            Assert.IsFalse(string.IsNullOrEmpty(pool.ToString()));
+            var sb = pool.Get();
+            Assert.IsNotNull(sb);
+            pool.Return(sb);
+            sb = pool.Get();
+            Assert.IsNotNull(sb);
+            sb = pool.Get();
+
+
+            for (var i = 0; i < 100; i++)
+            {
+                sb = pool.Get();
+                Assert.IsNotNull(sb);
+                pool.Return(sb);
+                Assert.IsNotNull(sb);
+                pool.Return(sb);
+                pool.Return(sb);
+            }
+
+            pool = new Pool<StringBuilder>(new PoolPolicy<StringBuilder>((p) => new StringBuilder(), null, 10));
+            Assert.IsFalse(string.IsNullOrEmpty(pool.ToString()));
+             sb = pool.Get();
+            Assert.IsNotNull(sb);
+            pool.Return(sb);
+            sb = pool.Get();
+            Assert.IsNotNull(sb);
+            sb = pool.Get();
+        }
+
+        [TestMethod]
+        public void TestCreateStringBuilder()
+        {
+            var pool = Pool.CreateStringBuilderPool();
+            System.Threading.Tasks.Parallel.For(1, 10000, (i) =>
+            {
+                var sb = pool.Get();
+                Assert.IsTrue(sb.Length == 0);
+                sb.Append("testing");
+                pool.Return(sb);
+            });
         }
     }
 }
