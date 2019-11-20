@@ -3,10 +3,16 @@
   <PropertyGroup>
     <TargetFrameworks>net40;net45;net46;netstandard2.0;netstandard2.1</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageTags>object, pool, fast, simple</PackageTags>
+    <PackageTags>object, pool,pooling,objectpool,object pool</PackageTags>
     <Description>Simple, light weight, thread safe object pool</Description>
-    <PackageProjectUrl>https://github.com/justinamiller/LightObjectPool</PackageProjectUrl>
+    <PackageProjectUrl></PackageProjectUrl>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.1</Version>
+    <PackageReleaseNotes>micro-optimisation</PackageReleaseNotes>
+    <Authors>Justin Miller</Authors>
+    <RepositoryUrl>https://github.com/justinamiller/LightObjectPool</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
