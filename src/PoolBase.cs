@@ -94,12 +94,18 @@ namespace LightObjectPool
 
 
         /// <summary>
-        /// Disposes <paramref name="pooledObject"/> if it is not null and supports <see cref="IDisposable"/>, otherwise does nothing. If <paramref name="pooledObject"/> is actually a <see cref="PooledObject{T}"/> instance, then disposes the <see cref="PooledObject{T}.Value"/> property instead.
+        /// Disposes object
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "object")]
+#if !NET40
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
         protected void SafeDispose(object pooledObject)
         {
-            (pooledObject as IDisposable)?.Dispose();
+            if (_isPooledTypeDisposable)
+            {
+                ((IDisposable)pooledObject).Dispose();
+            }
         }
 
         /// <summary>
