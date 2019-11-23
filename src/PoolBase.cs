@@ -100,7 +100,7 @@ namespace LightObjectPool
 #if !NET40
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
-        protected void SafeDispose(object pooledObject)
+        protected void SafeDispose(T pooledObject)
         {
             if (_isPooledTypeDisposable)
             {

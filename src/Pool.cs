@@ -99,7 +99,7 @@ namespace LightObjectPool
 
             if (IsDisposed)
             {
-                SafeDispose((object)value);
+                SafeDispose(value);
                 return false;
             }
 
@@ -112,7 +112,7 @@ namespace LightObjectPool
             }
             else
             {
-                SafeDispose((object)value);
+                SafeDispose(value);
                 return false;
             }
         }
@@ -141,7 +141,7 @@ namespace LightObjectPool
             }
 
             //pool is full will just disposed this element.
-            SafeDispose((object)value);
+            SafeDispose(value);
         }
 
         /// <summary>
@@ -182,7 +182,7 @@ namespace LightObjectPool
                     {
                         if (_pool[i].Element != null)
                         {
-                            SafeDispose((object)_pool[i].Element);
+                            SafeDispose(_pool[i].Element);
                         }
                     }
                 }
