@@ -44,7 +44,6 @@ namespace LightObjectPool
 
         private protected readonly int _poolSize;
         private protected readonly ObjectWrapper[] _pool;
-        private int _poolInstancesCount;
 
         public Pool(IPoolPolicy<T> poolPolicy) : base(poolPolicy)
         {
@@ -67,7 +66,6 @@ namespace LightObjectPool
                 retVal = pool[i].Element;
                 if (retVal != null && Interlocked.CompareExchange(ref pool[i].Element, null, retVal) == retVal)
                 {
-                    Interlocked.Decrement(ref _poolInstancesCount);
                     PoolPolicy.Reinitialize(retVal);
 
                     return retVal;
@@ -103,30 +101,20 @@ namespace LightObjectPool
                 return false;
             }
 
-            //check if pool is full
-            if (!IsPoolFull())
-            {
-                Add(value);
-
-                return true;
-            }
-            else
-            {
-                SafeDispose(value);
-                return false;
-            }
+  //add to the pool;
+         return   Add(value);
         }
 
         /// <summary>
         /// adds to pool array.
         /// </summary>
 
-        private void Add(T value)
+        private bool Add(T value)
         {
             //check if value has been alraedy returned
             if (Contains(value))
             {
-                return;
+                return false;
             }
 
             var pool = _pool;
@@ -135,13 +123,13 @@ namespace LightObjectPool
                 if (Interlocked.CompareExchange(ref pool[i].Element, value, null) == null)
                 {
                     //found empty element to use
-                    Interlocked.Increment(ref _poolInstancesCount);
-                    return;
+                    return true;
                 }
             }
 
             //pool is full will just disposed this element.
             SafeDispose(value);
+            return false;
         }
 
         /// <summary>
@@ -150,11 +138,6 @@ namespace LightObjectPool
 
         private bool Contains(T value)
         {
-            if (_poolInstancesCount == 0)
-            {
-                return false;
-            }
-
             var pool = _pool;
             for (var i = 0; i < _poolSize; ++i)
             {
@@ -191,15 +174,7 @@ namespace LightObjectPool
 
         public override string ToString()
         {
-            return string.Format("Usage {0}/{1}", _poolInstancesCount.ToString(), this._poolSize.ToString());
-        }
-
-#if !NET40
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#endif
-        private bool IsPoolFull()
-        {
-            return _poolInstancesCount >= _poolSize;
+            return $"Pool Size: {_poolSize.ToString()}"; 
         }
     }
 }
