@@ -9,9 +9,6 @@ namespace LightObjectPool
     /// Provides configuration controlling how an object pool works.
     /// Will call empty constructor for creation of object.
     /// </summary>
-    /// <typeparam name="T">The type of item being pooled.</typeparam>
-    /// <seealso cref="PooledItemInitialization"/>
-    /// <seealso cref="LightObjectPool.Pool{T}"/>
     public class DefaultPoolPolicy<T> : IPoolPolicy<T> where T : class, new()
     {
         private readonly Action<T> _reinitializeObject = null;
