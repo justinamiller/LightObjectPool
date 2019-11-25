@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Reflection;
-using System.Threading;
-using System.Diagnostics;
+using System.Text;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace LightObjectPool
 {
@@ -30,32 +29,120 @@ namespace LightObjectPool
             return Pool.Create<StringBuilder>((sb) => sb.Clear(), Environment.ProcessorCount * 2);
         }
     }
-
-
     /// <summary>
-    /// A non-blocking object pool optimised for situations involving heavily concurrent access.
+    /// Base class providing code re-use among multiple pool implementations.
     /// </summary>
-    public class Pool<T> : PoolBase<T> where T : class
+
+    public class Pool<T> : IPool<T> where T:class
     {
         private protected struct ObjectWrapper
         {
             public T Element;
         }
 
+        private readonly IPoolPolicy<T> _poolPolicy;
+        private readonly bool _isPooledTypeDisposable;
+        private bool _isDisposed;
         private protected readonly int _poolSize;
         private protected readonly ObjectWrapper[] _pool;
 
-        public Pool(IPoolPolicy<T> poolPolicy) : base(poolPolicy)
+
+        public Pool(IPoolPolicy<T> poolPolicy)
         {
+            _poolPolicy = poolPolicy ?? throw new ArgumentNullException(nameof(poolPolicy));
+            _isPooledTypeDisposable =   typeof(IDisposable).IsAssignableFrom(typeof(T));
+
             _pool = new ObjectWrapper[PoolPolicy.MaximumPoolSize];
             _poolSize = _pool.Length;
         }
 
         /// <summary>
+        /// Disposes this pool and all contained objects (if they are disposable).
+        /// </summary>
+        public bool IsDisposed
+        {
+            get
+            {
+                return _isDisposed;
+            }
+        }
+
+#pragma warning disable CA1063 // Implement IDisposable Correctly
+                              /// <summary>
+                              /// Disposes this pool and all contained objects (if they are disposable).
+        public void Dispose()
+#pragma warning restore CA1063 // Implement IDisposable Correctly
+        {
+            if (_isDisposed) return;
+
+            try
+            {
+                _isDisposed = true;
+
+                Dispose(true);
+            }
+            finally
+            {
+                GC.SuppressFinalize(this);
+            }
+        }
+
+
+#if !NET40
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+        protected void CheckDisposed()
+        {
+            if (_isDisposed) throw new ObjectDisposedException(this.GetType().FullName);
+        }
+
+
+        /// <summary>
+        /// Provides access to the <see cref="IPoolPolicy"/> passed in the constructor.
+        /// </summary>
+        protected IPoolPolicy<T> PoolPolicy
+        {
+            get
+            {
+                return _poolPolicy;
+            }
+        }
+
+        /// <summary>
+        /// Returns a boolean indicating if {T} is disposale.
+        /// </summary>
+        protected bool IsPooledTypeDisposable
+        {
+            get
+            {
+                return _isPooledTypeDisposable;
+            }
+        }
+
+
+        /// <summary>
+        /// Disposes object
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "object")]
+#if !NET40
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#endif
+        protected void SafeDispose(T pooledObject)
+        {
+            if (_isPooledTypeDisposable)
+            {
+                ((IDisposable)pooledObject).Dispose();
+            }
+        }
+
+
+
+
+        /// <summary>
         /// Gets an item from the pool.
         /// </summary>
-  
-        public override T Get()
+
+        public T Get()
         {
             CheckDisposed();
 
@@ -80,8 +167,8 @@ namespace LightObjectPool
         /// <summary>
         /// Wrapped gets an item from the pool.
         /// </summary>
-      
-        public override PooledObject<T> GetPooledObject()
+
+        public PooledObject<T> GetPooledObject()
         {
             return new PooledObject<T>(this, this.Get());
         }
@@ -91,7 +178,7 @@ namespace LightObjectPool
         /// Returns/adds an object to the pool so it can be reused.
         /// </summary>
 
-        public override bool Return(T value)
+        public  bool Return(T value)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
@@ -101,8 +188,8 @@ namespace LightObjectPool
                 return false;
             }
 
-  //add to the pool;
-         return   Add(value);
+            //add to the pool;
+            return Add(value);
         }
 
         /// <summary>
@@ -155,7 +242,7 @@ namespace LightObjectPool
         /// Performs dispose logic, can be overridden by derivded types.
         /// </summary>
 
-        protected override void Dispose(bool disposing)
+        protected  void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -171,10 +258,6 @@ namespace LightObjectPool
                 }
             }
         }
-
-        public override string ToString()
-        {
-            return $"Pool Size: {_poolSize.ToString()}"; 
-        }
+       
     }
 }
